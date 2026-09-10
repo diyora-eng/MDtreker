@@ -14,24 +14,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun MainScreen(viewModel: TrackerViewModel = TrackerViewModel()) {
+fun MainScreen(
+    viewModel: TrackerViewModel = TrackerViewModel(), // Заменили viewModel() на прямой вызов класса
+    onNavigateToBase: () -> Unit
+) {
     val titleState by viewModel.uiState.collectAsState()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(all = 24.dp)
     ) {
-
         Text(
             text = titleState,
             style = MaterialTheme.typography.headlineLarge,
             modifier = Modifier.align(Alignment.Center)
         )
 
-
         Button(
-            onClick = { viewModel.onRegisterClick() },
+            onClick = {
+                viewModel.onRegisterClick()
+                onNavigateToBase()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
