@@ -40,7 +40,7 @@ MD Tracker превращает бессознательную привычку 
 
 1. Клонируйте репозиторий:
    bash
-   git clone https://github.com/ваш-username/md-tracker.git
+   git clone https://github.com/diyora-eng/md-tracker.git
 
 2. Откройте проект в Android Studio (версия Arctic Fox или новее).
 3. Дождитесь синхронизации Gradle.
