@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [TrackerEntry::class], version = 1)
+@Database(entities = [TrackerEntry::class], version = 3)
 abstract class TrackerDatabase : RoomDatabase() {
     abstract fun trackerDao(): TrackerDao
 
@@ -18,7 +18,9 @@ abstract class TrackerDatabase : RoomDatabase() {
                     context.applicationContext,
                     TrackerDatabase::class.java,
                     "mdtracker.db"
-                ).build().also { INSTANCE = it }
+                )
+                .fallbackToDestructiveMigration(dropAllTables = true)
+                .build().also { INSTANCE = it }
             }
     }
 }
