@@ -71,7 +71,7 @@ fun MainContent(
     viewModel: TrackerViewModel
 ) {
     var currentTab by rememberSaveable { mutableStateOf(Tab.MAIN) }
-    val entries by viewModel.entries.collectAsState(initial = emptyList())
+    val entries by viewModel.episodes.collectAsState(initial = emptyList())
     val userName by viewModel.userName.collectAsState()
 
     Scaffold(

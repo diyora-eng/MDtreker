@@ -2,6 +2,7 @@ package com.xemoado.mdtracker
 
 import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.xemoado.mdtracker.ui.components.RiverChartCard
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -72,7 +75,10 @@ fun MainScreen(
     onNavigateToBase: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val entries by viewModel.entries.collectAsState(initial = emptyList())
+    val entries by viewModel.episodes.collectAsState(initial = emptyList())
+    val riverPoints by viewModel.river.collectAsState(initial = emptyList())
+    val advisory by viewModel.advisory.collectAsState(initial = false)
+    val currentRange by viewModel.currentRange.collectAsState(initial = 7)
 
     var showSuccessMessage by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(false) }
@@ -84,7 +90,7 @@ fun MainScreen(
             showSuccessMessage = true
             viewModel.clearInputs()
             viewModel.onSaveHandled()
-            delay(3000)
+            delay(3000L)
             showSuccessMessage = false
         }
     }
@@ -127,6 +133,13 @@ fun MainScreen(
             }
         }
 
+        // River Chart Section
+        RiverChartCard(
+            points = riverPoints,
+            days = currentRange,
+            onRangeChange = viewModel::setRange
+        )
+
         // New Episode Entry Form Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -159,7 +172,7 @@ fun MainScreen(
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                            border = if (!selected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null,
+                            border = if (!selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null,
                             modifier = Modifier.clickable { viewModel.onTriggerSelected(trigger) }
                         ) {
                             Text(
@@ -191,7 +204,7 @@ fun MainScreen(
                         OutlinedButton(
                             onClick = { viewModel.onDurationChanged(uiState.durationMinutes - 5) },
                             modifier = Modifier.size(36.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                            contentPadding = PaddingValues(0.dp)
                         ) {
                             Text("-")
                         }
@@ -203,7 +216,7 @@ fun MainScreen(
                         OutlinedButton(
                             onClick = { viewModel.onDurationChanged(uiState.durationMinutes + 5) },
                             modifier = Modifier.size(36.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                            contentPadding = PaddingValues(0.dp)
                         ) {
                             Text("+")
                         }
@@ -352,16 +365,14 @@ fun MainScreen(
                     Button(
                         onClick = {
                             isGeneratingAiReport = true
-                            val count = entries.size
-                            val avgControl = if (count > 0) entries.map { it.controlLevel }.average() else 3.0
-                            val avgCraving = if (count > 0) entries.map { it.cravingLevel }.average() else 3.0
-                            val avgDistress = if (count > 0) entries.map { it.distressLevel }.average() else 2.0
-                            val topTrigger = if (count > 0) entries.groupBy { it.trigger }.maxByOrNull { it.value.size }?.key else "—"
+                            val stats = viewModel.statsForInsight()
+                            val count = stats.entriesCount
+                            val topTrigger = stats.byTrigger.maxByOrNull { it.value }?.key ?: "—"
 
-                            aiReportText = "Анализ ${count} эпизодов:\n• Частый триггер: $topTrigger\n• Средний уровень контроля: ${String.format(Locale.getDefault(), "%.1f", avgControl)}/5\n• Тяга к повтору: ${String.format(Locale.getDefault(), "%.1f", avgCraving)}/5\n• Уровень дистресса: ${String.format(Locale.getDefault(), "%.1f", avgDistress)}/5\n\nСовет: Обратите внимание на эпизоды, связанные с '$topTrigger'. Используйте технику осознанного замедления при первых признаках погружения."
+                            aiReportText = "Анализ $count эпизодов за ${stats.periodDays} дн.:\n• Частый триггер: $topTrigger\n• Средний уровень контроля: ${String.format(Locale.getDefault(), "%.1f", stats.avgControl)}/5\n• Тяга к повтору: ${String.format(Locale.getDefault(), "%.1f", stats.avgCraving)}/5\n• Уровень дистресса: ${String.format(Locale.getDefault(), "%.1f", stats.avgDistress)}/5\n\nСовет: Используйте техники осознанного заземления при первичном импульсе погружения."
                             isGeneratingAiReport = false
                         },
-                        enabled = entries.isNotEmpty() && !isGeneratingAiReport
+                        enabled = entries.size >= 3 && !isGeneratingAiReport
                     ) {
                         Text("Собрать обзор")
                     }
@@ -387,30 +398,26 @@ fun MainScreen(
                 }
 
                 // Advisory check if avg distress high
-                if (entries.isNotEmpty()) {
-                    val avgDistress = entries.map { it.distressLevel }.average()
-                    val avgControl = entries.map { it.controlLevel }.average()
-                    if (avgDistress >= 3.5 || avgControl <= 2.0) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                            modifier = Modifier.fillMaxWidth()
+                if (advisory) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Info,
-                                    contentDescription = "Предупреждение",
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Text(
-                                    text = "Уровень дистресса или потери контроля в последних записях повышен. Стоит обсудить это с психотерапевтом.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = "Предупреждение",
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = "Уровень дистресса или потери контроля в последних записях повышен. Стоит обсудить это с психотерапевтом.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
                         }
                     }
                 }
@@ -438,9 +445,9 @@ fun MainScreen(
 
                     entries.take(3).forEach { entry ->
                         val badgeColor = when {
-                            entry.distressLevel >= 4 -> Color(0xFFE2707A)
-                            entry.cravingLevel >= 4 -> Color(0xFF7C8CF5)
-                            entry.controlLevel <= 2 -> Color(0xFFE8A857)
+                            entry.distress >= 4 -> Color(0xFFE2707A)
+                            entry.craving >= 4 -> Color(0xFF7C8CF5)
+                            entry.control <= 2 -> Color(0xFFE8A857)
                             else -> Color(0xFF6FC9A6)
                         }
 
@@ -459,19 +466,19 @@ fun MainScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                                     Text(
-                                        text = entry.trigger,
+                                        text = entry.triggerType,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = sdf.format(Date(entry.timestamp)),
+                                        text = sdf.format(Date(entry.startedAt)),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.outline
                                     )
                                 }
                                 Text(
-                                    text = "${entry.durationMinutes} мин · контроль ${entry.controlLevel}/5 · дистресс ${entry.distressLevel}/5" +
-                                            if (entry.topic.isNotBlank()) " · «${entry.topic}»" else "",
+                                    text = "${entry.durationMin} мин · контроль ${entry.control}/5 · дистресс ${entry.distress}/5" +
+                                            if (!entry.topic.isNullOrBlank()) " · «${entry.topic}»" else "",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
