@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,7 +37,7 @@ import androidx.compose.ui.unit.sp
 fun RegistrationScreen(
     onRegisterSuccess: (String) -> Unit
 ) {
-    var step by remember { mutableStateOf(0) } // 0: Welcome, 1: Form
+    var step by remember { mutableIntStateOf(0) } // 0: Welcome, 1: Form
     var nameInput by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 

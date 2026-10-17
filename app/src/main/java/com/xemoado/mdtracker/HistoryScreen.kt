@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.xemoado.mdtracker.data.EpisodeEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -67,7 +68,7 @@ fun HistoryScreen(
     ),
     onNavigateBack: (() -> Unit)? = null
 ) {
-    val entries by viewModel.entries.collectAsState(initial = emptyList())
+    val entries by viewModel.episodes.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
 
     var selectedTrigger by remember { mutableStateOf("Скука") }
@@ -242,14 +243,14 @@ fun HistoryScreen(
 }
 
 @Composable
-fun HistoryEntryCard(entry: TrackerEntry, onDelete: () -> Unit) {
+fun HistoryEntryCard(entry: EpisodeEntity, onDelete: () -> Unit) {
     val sdf = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
-    val dateString = sdf.format(Date(entry.timestamp))
+    val dateString = sdf.format(Date(entry.startedAt))
 
     val badgeColor = when {
-        entry.distressLevel >= 4 -> Color(0xFFE2707A)
-        entry.cravingLevel >= 4 -> Color(0xFF7C8CF5)
-        entry.controlLevel <= 2 -> Color(0xFFE8A857)
+        entry.distress >= 4 -> Color(0xFFE2707A)
+        entry.craving >= 4 -> Color(0xFF7C8CF5)
+        entry.control <= 2 -> Color(0xFFE8A857)
         else -> Color(0xFF6FC9A6)
     }
 
@@ -272,7 +273,7 @@ fun HistoryEntryCard(entry: TrackerEntry, onDelete: () -> Unit) {
             Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
-                        text = entry.trigger,
+                        text = entry.triggerType,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -286,12 +287,12 @@ fun HistoryEntryCard(entry: TrackerEntry, onDelete: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Длительность: ${entry.durationMinutes} мин · Контроль: ${entry.controlLevel}/5 · Тяга: ${entry.cravingLevel}/5 · Дистресс: ${entry.distressLevel}/5",
+                    text = "Длительность: ${entry.durationMin} мин · Контроль: ${entry.control}/5 · Тяга: ${entry.craving}/5 · Дистресс: ${entry.distress}/5",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (entry.topic.isNotEmpty()) {
+                if (!entry.topic.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Тема: «${entry.topic}»",
@@ -300,10 +301,10 @@ fun HistoryEntryCard(entry: TrackerEntry, onDelete: () -> Unit) {
                     )
                 }
 
-                if (entry.stateDescription.isNotEmpty()) {
+                if (!entry.note.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Заметка: ${entry.stateDescription}",
+                        text = "Заметка: ${entry.note}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
